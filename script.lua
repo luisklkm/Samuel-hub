@@ -1,160 +1,148 @@
+--SCRIPT PRONTO PARA DELTA EXECUTOR
+--Funcionalidades: Auto Click, Auto Farm, Anti-AFK e Auto Rank Up (20s), com abas simples
+
 local lp = game:GetService("Players").LocalPlayer
 local RS = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local VIM = game:GetService("VirtualInputManager")
 
--- GUI
+-- Interface
 local gui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-gui.Name = "DeltaInterface"
+gui.Name = "SimpleAntiCheatUI"
 gui.ResetOnSpawn = false
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 320, 0, 350)
-main.Position = UDim2.new(0.5, -160, 0.4, 0)
-main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-main.Active = true
-main.Draggable = true
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 300, 0, 360)
+frame.Position = UDim2.new(0.5, -150, 0.5, -180)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Active = true
+frame.Draggable = true
 
-local close = Instance.new("TextButton", main)
-close.Size = UDim2.new(0, 60, 0, 25)
-close.Position = UDim2.new(1, -65, 0, 5)
-close.Text = "Fechar"
-close.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
-close.TextColor3 = Color3.new(1,1,1)
-close.Font = Enum.Font.SourceSans
-close.TextSize = 14
-close.MouseButton1Click:Connect(function()
-	main.Visible = false
+-- Botão fechar e tecla de reabertura
+local closeBtn = Instance.new("TextButton", frame)
+closeBtn.Size = UDim2.new(0, 60, 0, 25)
+closeBtn.Position = UDim2.new(1, -65, 0, 5)
+closeBtn.Text = "Fechar"
+closeBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.SourceSans
+closeBtn.TextSize = 14
+closeBtn.MouseButton1Click:Connect(function()
+	frame.Visible = false
 end)
-
-UIS.InputBegan:Connect(function(input, gpe)
-	if not gpe and input.KeyCode == Enum.KeyCode.L then
-		main.Visible = true
+UIS.InputBegan:Connect(function(input, processed)
+	if not processed and input.KeyCode == Enum.KeyCode.L then
+		frame.Visible = true
 	end
 end)
 
-local tabFrame = Instance.new("Frame", main)
-tabFrame.Size = UDim2.new(1, 0, 0, 30)
-tabFrame.Position = UDim2.new(0, 0, 0, 30)
-tabFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+-- Abas
+local tabButtons = Instance.new("Frame", frame)
+tabButtons.Size = UDim2.new(1,0,0,30)
+tabButtons.BackgroundColor3 = Color3.fromRGB(45,45,45)
 
-local tabs = {}
 local pages = {}
+local function createTab(name, order)
+	local btn = Instance.new("TextButton", tabButtons)
+	btn.Size = UDim2.new(0,75,1,0)
+	btn.Position = UDim2.new(0, 75*(order-1), 0, 0)
+	btn.Text = name
+	btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextSize = 14
 
-local function createTab(name)
-	local tab = Instance.new("TextButton", tabFrame)
-	tab.Size = UDim2.new(0, 80, 1, 0)
-	tab.Text = name
-	tab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	tab.TextColor3 = Color3.new(1, 1, 1)
-	tab.Font = Enum.Font.SourceSansBold
-	tab.TextSize = 14
-
-	local page = Instance.new("Frame", main)
-	page.Size = UDim2.new(1, 0, 1, -60)
-	page.Position = UDim2.new(0, 0, 0, 60)
+	local page = Instance.new("Frame", frame)
+	page.Position = UDim2.new(0,0,0,30)
+	page.Size = UDim2.new(1,0,1,-30)
 	page.BackgroundTransparency = 1
 	page.Visible = false
+	pages[name] = page
 
-	tab.MouseButton1Click:Connect(function()
-		for _, p in pairs(pages) do p.Visible = false end
+	btn.MouseButton1Click:Connect(function()
+		for _,p in pairs(pages) do p.Visible = false end
 		page.Visible = true
 	end)
 
-	table.insert(tabs, tab)
-	table.insert(pages, page)
 	return page
 end
 
-local function makeButton(text, y, parent, callback)
+local function makeButton(parent, text, y, callback)
 	local b = Instance.new("TextButton", parent)
-	b.Size = UDim2.new(0, 260, 0, 30)
-	b.Position = UDim2.new(0, 30, 0, y)
-	b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	b.Size = UDim2.new(0,260,0,30)
+	b.Position = UDim2.new(0,20,0,y)
+	b.BackgroundColor3 = Color3.fromRGB(70,70,70)
 	b.Text = text
-	b.TextColor3 = Color3.new(1, 1, 1)
+	b.TextColor3 = Color3.new(1,1,1)
 	b.Font = Enum.Font.SourceSansBold
-	b.TextSize = 16
+	b.TextSize = 14
 	b.MouseButton1Click:Connect(callback)
 end
 
--- AUTO
-local autoPage = createTab("Auto")
+-- Aba Auto
+local autoTab = createTab("Auto", 1)
+local autoClick, autoFarm = false, false
+local selectedNPC, npcList = nil, {}
 
-local autoClick = false
-local autoFarm = false
-local selectedNPC = nil
-local npcList = {}
-
-makeButton("Toggle Auto Click", 0.05, autoPage, function()
+makeButton(autoTab, "Toggle Auto Click", 10, function()
 	autoClick = not autoClick
 end)
-
-makeButton("Atualizar NPCs", 0.20, autoPage, function()
+makeButton(autoTab, "Atualizar NPCs", 50, function()
 	npcList = {}
-	for _, obj in pairs(workspace:GetDescendants()) do
+	for _,obj in pairs(workspace:GetDescendants()) do
 		if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
 			table.insert(npcList, obj)
 		end
 	end
 end)
-
-makeButton("Selecionar NPC", 0.35, autoPage, function()
+makeButton(autoTab, "Selecionar NPC", 90, function()
 	if #npcList > 0 then
-		local i = table.find(npcList, selectedNPC) or 0
-		i = (i % #npcList) + 1
-		selectedNPC = npcList[i]
+		local idx = table.find(npcList, selectedNPC) or 0
+		idx = (idx % #npcList) + 1
+		selectedNPC = npcList[idx]
 	end
 end)
-
-makeButton("Toggle Auto Farm", 0.50, autoPage, function()
+makeButton(autoTab, "Toggle Auto Farm", 130, function()
 	autoFarm = not autoFarm
 end)
 
--- RANK
-local rankPage = createTab("Rank")
+-- Aba Rank
+local rankTab = createTab("Rank", 2)
 local autoRank = false
-
-makeButton("Toggle Auto Rank Up", 0.05, rankPage, function()
+makeButton(rankTab, "Toggle Auto Rank Up", 10, function()
 	autoRank = not autoRank
 end)
 
--- MOVIMENTO (reserva se quiser adicionar speed/fly)
-local movePage = createTab("Extra")
-makeButton("Reset Player", 0.05, movePage, function()
-	lp.Character:BreakJoints()
+-- Lógicas
+-- Auto Click e Farm
+RunService.RenderStepped:Connect(function()
+	if autoClick then
+		VIM:SendMouseButtonEvent(0,0,0,true,nil,0)
+		task.wait(0.1)
+		VIM:SendMouseButtonEvent(0,0,0,false,nil,0)
+	end
+	if autoFarm and selectedNPC and selectedNPC:FindFirstChild("HumanoidRootPart") then
+		lp.Character:MoveTo(selectedNPC.HumanoidRootPart.Position + Vector3.new(0,0,2))
+	end
 end)
 
--- LOOP DE FUNÇÕES
+-- Anti-AFK
 lp.Idled:Connect(function()
 	VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
 end)
 
-RunService.RenderStepped:Connect(function()
-	if autoClick then
-		VIM:SendMouseButtonEvent(0, 0, 0, true, nil, 0)
-		task.wait(0.1)
-		VIM:SendMouseButtonEvent(0, 0, 0, false, nil, 0)
-	end
-	if autoFarm and selectedNPC and selectedNPC:FindFirstChild("HumanoidRootPart") then
-		lp.Character:MoveTo(selectedNPC.HumanoidRootPart.Position + Vector3.new(0, 0, 2))
-	end
-end)
-
+-- Auto Rank Up loop
 task.spawn(function()
-	while true do
+	while task.wait(20) do
 		if autoRank then
-			local remote = RS:FindFirstChild("Ranks")
-			if remote and remote:IsA("RemoteEvent") then
-				pcall(function()
-					remote:FireServer()
-				end)
+			local r = RS:FindFirstChild("Ranks")
+			if r then
+				pcall(function() r:FireServer() end)
 			end
 		end
-		task.wait(20)
 	end
 end)
 
--- Mostrar primeira aba
-pages[1].Visible = true
+-- Ativar primeira aba
+pages["Auto"].Visible = true
